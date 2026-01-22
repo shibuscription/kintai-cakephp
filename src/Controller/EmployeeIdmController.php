@@ -1,7 +1,10 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Controller;
+
+use Cake\Core\Configure;
 
 /**
  * EmployeeIdm Controller
@@ -106,5 +109,68 @@ class EmployeeIdmController extends AppController
         }
 
         return $this->redirect(['action' => 'index']);
+    }
+
+
+
+    public function register()
+    {
+        $this->viewBuilder()->setLayout('kiosk');
+
+        if (!Configure::read('debug')) {
+            // 本番でどうするかは後で。今は安全寄りで塞ぐ
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+
+        $scanLogId = (int)$this->request->getQuery('scan_log_id');
+
+        $scanLogs = $this->fetchTable('ScanLogs');
+        $employees = $this->fetchTable('Employees');
+        $employeeIdm = $this->fetchTable('EmployeeIdm');
+
+        $scanLog = $scanLogs->get($scanLogId);
+        $idm = (string)$scanLog->idm;
+
+        // もし既に登録済みなら戻す（多重登録回避）
+        $exists = $employeeIdm->find()
+            ->where(['idm' => $idm])
+            ->first();
+
+        if ($exists) {
+            return $this->redirect(['controller' => 'Attendance', 'action' => 'decide', '?' => ['scan_log_id' => $scanLogId]]);
+        }
+
+        // 全社員（いったん会社絞り込み無し）
+        $employeeList = $employees->find()
+            ->select(['id', 'employee_name'])
+            ->where(['active_flag' => 1])
+            ->orderAsc('employee_name')
+            ->all()
+            ->combine('id', 'employee_name')
+            ->toArray();
+
+        if ($this->request->is('post')) {
+            $employeeId = (int)$this->request->getData('employee_id');
+
+            if (!isset($employeeList[$employeeId])) {
+                $this->Flash->error('社員を選択してください。');
+            } else {
+                $e = $employeeIdm->newEmptyEntity();
+                $e->employee_id = $employeeId;
+                $e->idm = $idm;
+                $e->active_flag = 1;
+
+                $employeeIdm->saveOrFail($e);
+
+                // 登録後、出退勤ボタンへ戻す
+                return $this->redirect([
+                    'controller' => 'Attendance',
+                    'action' => 'decide',
+                    '?' => ['scan_log_id' => $scanLogId],
+                ]);
+            }
+        }
+
+        $this->set(compact('scanLogId', 'scanLog', 'idm', 'employeeList'));
     }
 }

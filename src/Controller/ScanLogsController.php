@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use Cake\I18n\FrozenTime;
+
 /**
  * ScanLogs Controller
  *
@@ -113,5 +115,109 @@ class ScanLogsController extends AppController
         }
 
         return $this->redirect(['action' => 'index']);
+    }
+
+    public function next()
+    {
+        $this->request->allowMethod(['get']);
+
+        $deviceId = (string)$this->request->getQuery('device_id', '');
+        $this->viewBuilder()->setClassName('Json');
+
+        if ($deviceId === '') {
+            $this->set(['found' => false, 'error' => 'device_id is required']);
+            $this->set('_serialize', ['found', 'error']);
+            return;
+        }
+
+        // 直近10秒以内だけ有効
+        $windowSec = (int)$this->request->getQuery('window_sec', 10);
+        if ($windowSec <= 0 || $windowSec > 120) {
+            $windowSec = 10;
+        }
+
+        $conn = $this->ScanLogs->getConnection();
+
+        $result = $conn->transactional(function () use ($deviceId, $windowSec) {
+            $now = FrozenTime::now();                 // AppのTZ設定に従う
+            $threshold = $now->subSeconds($windowSec);
+
+            // ★掃除：古い未処理を期限切れ(9)へ
+            $this->ScanLogs->updateAll(
+                ['processed' => 9],
+                [
+                    'processed' => 0,
+                    'device_id' => $deviceId,
+                    'scanned_at <' => $threshold,
+                ]
+            );
+
+            // ★直近の未処理を1件拾う（10秒以内）
+            $scanLog = $this->ScanLogs->find()
+                ->where([
+                    'processed' => 0,
+                    'device_id' => $deviceId,
+                    'scanned_at >=' => $threshold,
+                ])
+                ->orderAsc('id')
+                ->first();
+
+            if (!$scanLog) {
+                return ['found' => false];
+            }
+
+            // ★取得済みにする（0 → 1）
+            $affected = $this->ScanLogs->updateAll(
+                ['processed' => 1],
+                ['id' => $scanLog->id, 'processed' => 0]
+            );
+
+            if ($affected !== 1) {
+                return ['found' => false];
+            }
+
+            return [
+                'found' => true,
+                'scan_log_id' => (int)$scanLog->id,
+            ];
+        });
+
+        $this->set($result + ['error' => null]);
+        $this->set('_serialize', ['found', 'scan_log_id', 'error']);
+    }
+
+
+    public function devCreate()
+    {
+        if (!\Cake\Core\Configure::read('debug')) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+
+        $idm = (string)$this->request->getQuery('idm', 'TEST_IDM_001');
+        $deviceId = (string)$this->request->getQuery('device_id', 'DEV_LOCAL');
+        $at = (string)$this->request->getQuery('at', '');
+
+        $e = $this->ScanLogs->newEmptyEntity();
+        $e->idm = $idm;
+        $e->device_id = $deviceId;
+        $e->scanned_at = $at !== '' ? $at : date('Y-m-d H:i:s');
+        $e->processed = 0;
+
+        $this->ScanLogs->saveOrFail($e);
+
+        return $this->redirect(['action' => 'devPanel']);
+    }
+
+    public function devPanel()
+    {
+        if (!\Cake\Core\Configure::read('debug')) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+
+        // デフォルト値（画面に表示用）
+        $this->set([
+            'defaultIdm' => 'TEST_IDM_001',
+            'defaultDeviceId' => 'DEV_LOCAL',
+        ]);
     }
 }
