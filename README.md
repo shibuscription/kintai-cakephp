@@ -1,53 +1,178 @@
-# CakePHP Application Skeleton
+# 勤怠管理システム（IDM打刻・タブレット端末向け）
 
-![Build Status](https://github.com/cakephp/app/actions/workflows/ci.yml/badge.svg?branch=master)
-[![Total Downloads](https://img.shields.io/packagist/dt/cakephp/app.svg?style=flat-square)](https://packagist.org/packages/cakephp/app)
-[![PHPStan](https://img.shields.io/badge/PHPStan-level%207-brightgreen.svg?style=flat-square)](https://github.com/phpstan/phpstan)
+ICカード（IDM）を使った **タブレット常設型の勤怠打刻システム**です。  
+出勤・退勤操作は「カードをかざす → 大きなボタンを押す」だけのシンプルなUIを重視しています。
 
-A skeleton for creating applications with [CakePHP](https://cakephp.org) 4.x.
+---
 
-The framework source code can be found here: [cakephp/cakephp](https://github.com/cakephp/cakephp).
+## 🧭 コンセプト・方針
 
-## Installation
+- **打刻端末はタブレット専用**
+  - スマホ対応はしない（UIを極力シンプルに）
+- **誰でも迷わず操作できる**
+  - 大きなボタン
+  - リアルタイム時計表示（秒単位）
+- **カード再スキャン前提の運用**
+  - 画面遷移後にキャンセルしても問題なし
+  - 必要ならもう一度カードをかざせばよい
+- **複数会社・複数端末対応を前提**
+  - device_id ごとに打刻を分離
 
-1. Download [Composer](https://getcomposer.org/doc/00-intro.md) or update `composer self-update`.
-2. Run `php composer.phar create-project --prefer-dist cakephp/app [app_name]`.
+---
 
-If Composer is installed globally, run
+## 🗂️ テーブル構成（主要）
 
-```bash
-composer create-project --prefer-dist cakephp/app
+### companies
+会社マスタ
+
+### employees
+社員マスタ（会社に所属）
+
+### employee_idm
+社員と IDM（ICカードID）の紐づけ  
+※ **EmployeeIdm（単数）** を使用
+
+| column | note |
+|------|------|
+| employee_id | employees.id |
+| idm | ICカードID（ユニーク） |
+
+---
+
+### scan_logs
+カード読み取りログ（打刻のトリガ）
+
+| column | note |
+|------|------|
+| idm | 読み取ったカードID |
+| device_id | 端末ID |
+| scanned_at | 読み取り時刻 |
+| processed | 状態フラグ |
+
+#### processed の運用
+- `0` : 未処理（待ち）
+- `1` : 取得済み（画面遷移済み）
+- `9` : 期限切れ・未使用
+
+---
+
+### attendance_records
+勤怠実績（1日1レコード）
+
+- employee_id + work_date でユニーク
+- check_in / check_out を保持
+
+---
+
+## 🔁 打刻フロー
+
+```
+[待ち画面]
+  ↓（カード読み取り）
+scan_logs に INSERT（processed=0）
+  ↓（ポーリング）
+/scan-logs/next
+  - 10秒以内
+  - device_id一致
+  - processed=0
+  ↓
+processed=1 に更新
+  ↓
+/attendance/decide
+  ↓
+[出勤 / 退勤 ボタン]
+  ↓
+attendance_records 更新
 ```
 
-In case you want to use a custom app dir name (e.g. `/myapp/`):
+---
 
-```bash
-composer create-project --prefer-dist cakephp/app myapp
+## 🖥️ 画面一覧
+
+### ① 打刻待ち画面（Dashboard）
+
+- 画面いっぱいに表示
+- 秒単位で更新されるリアルタイム時計
+- `/scan-logs/next` を 1秒ごとにポーリング
+- 該当ログがあれば自動遷移
+
+---
+
+### ② 打刻確認画面（Attendance/decide）
+
+- 表示内容
+  - 社員名
+  - 現在時刻（リアルタイム）
+  - 出勤 / 退勤 大型ボタン
+- 出勤・退勤は左右に大きく配置
+- 押せない方は disabled 表示
+- **キャンセル（戻る）ボタンあり**
+  - 押すと打刻待ち画面へ戻る
+  - scan_log はそのまま（再スキャン前提）
+
+---
+
+### ③ IDM未登録時（予定）
+
+- IDM に対応する社員がいない場合
+- 社員一覧から選択してその場で紐づけ
+- 現状は全社員表示（将来は会社絞り込み予定）
+
+---
+
+## 🧪 開発用機能
+
+### devCreate（ScanLogs）
+
+開発時にカード読み取りを擬似再現するための機能。
+
+```
+GET /scan-logs/dev-create
 ```
 
-You can now either use your machine's webserver to view the default home page, or start
-up the built-in webserver with:
+#### パラメータ（省略可）
+- `idm`（デフォルト: TEST_IDM_001）
+- `device_id`（デフォルト: DEV_LOCAL）
+- `at`（日時、省略時は now）
 
-```bash
-bin/cake server -p 8765
+---
+
+## ⚙️ ルーティング（抜粋）
+
+```php
+$routes->connect('/', ['controller' => 'Dashboard', 'action' => 'index']);
+$routes->connect('/dashboard', ['controller' => 'Dashboard', 'action' => 'index']);
+
+$routes->connect('/scan-logs/next', ['controller' => 'ScanLogs', 'action' => 'next']);
+$routes->connect('/scan-logs/dev-create', ['controller' => 'ScanLogs', 'action' => 'devCreate']);
 ```
 
-Then visit `http://localhost:8765` to see the welcome page.
+---
 
-## Update
+## 🧩 AttendanceController の設計方針
 
-Since this skeleton is a starting point for your application and various files
-would have been modified as per your needs, there isn't a way to provide
-automated upgrades, so you have to do any updates manually.
+- IDM → employee_id の解決は `EmployeeIdm` で行う
+- ScanLog は **next 時点で processed=1**
+- commit では ScanLog を触らない（シンプル運用）
+- 古い ScanLog は next 内で `processed=9` に更新
 
-## Configuration
+---
 
-Read and edit the environment specific `config/app_local.php` and set up the
-`'Datasources'` and any other configuration relevant for your application.
-Other environment agnostic settings can be changed in `config/app.php`.
+## 🕰️ 時刻・ロケール設定
 
-## Layout
+- defaultTimezone: `Asia/Tokyo`
+- defaultLocale: `ja_JP`
 
-The app skeleton uses [Milligram](https://milligram.io/) (v1.3) minimalist CSS
-framework by default. You can, however, replace it with any other library or
-custom styles.
+---
+
+## 📌 今後の検討事項
+
+- IDM未登録時の社員検索UI改善
+- 会社単位での社員絞り込み
+- 管理画面（ユーザー・社員・デバイス管理）
+- 打刻履歴・修正機能
+- 本番運用時の ScanLog クリーンアップ方針
+
+---
+
+※ 本 README は開発途中の仕様を含みます。
