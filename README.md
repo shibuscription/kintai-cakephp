@@ -17,6 +17,8 @@ ICカード（IDM）を使った **タブレット常設型の勤怠打刻シス
   - 必要ならもう一度カードをかざせばよい
 - **複数会社・複数端末対応を前提**
   - device_id ごとに打刻を分離
+- **打刻端末は未ログイン運用**
+  - 管理者が事前に端末をセットアップし、端末側はURLを開くだけ
 
 ---
 
@@ -89,12 +91,13 @@ attendance_records 更新
 
 ## 🖥️ 画面一覧
 
-### ① 打刻待ち画面（Dashboard）
+### ① 打刻待ち画面（Kiosk / Dashboard）
 
 - 画面いっぱいに表示
 - 秒単位で更新されるリアルタイム時計
 - `/scan-logs/next` を 1秒ごとにポーリング
 - 該当ログがあれば自動遷移
+- 通信エラー時は「接続中…（再試行）」を表示
 
 ---
 
@@ -165,12 +168,71 @@ $routes->connect('/scan-logs/dev-create', ['controller' => 'ScanLogs', 'action' 
 
 ---
 
+## 🚀 VPS・本番運用メモ（追記）
+
+### 実行環境
+- OS: Rocky Linux
+- Web: Apache (httpd)
+- PHP: 8.2
+- FW: CakePHP 4.6
+- 公開ポート: **8080**
+  - 80番は別サイト運用のため分離
+
+### DocumentRoot
+```
+/var/www/html/kintai-cakephp/webroot
+```
+
+### 端末アクセス例
+```
+http://<host>:8080/kiosk/wait?device_id=XXX
+```
+
+### 権限
+- Web / PHP 実行ユーザー: `apache`
+- 書き込みディレクトリ:
+  - `logs/`
+  - `tmp/`
+```
+chown -R apache:apache logs tmp
+chmod -R 775 logs tmp
+```
+
+### 未ログイン端末対応
+- `/scan-logs/next` は **認証不要**
+- AuthenticationMiddleware で unauthenticated action に指定
+
+### JSONレスポンスの注意
+- PHP 8.2 + debug 環境では **Deprecated 警告がJSONに混入**しやすい
+- 本番では以下を設定して抑制する
+
+```php
+'Error' => [
+    'errorLevel' => E_ALL & ~E_USER_DEPRECATED,
+    'trace' => false,
+],
+```
+
+### ScanLogsController の注意点
+- PHP8.2 対応のため以下を明示
+```php
+public $ScanLogs = null;
+```
+
+- JSON返却は新方式を使用
+```php
+$this->viewBuilder()->setOption('serialize', [...]);
+```
+
+---
+
 ## 📌 今後の検討事項
 
 - IDM未登録時の社員検索UI改善
 - 会社単位での社員絞り込み
 - 管理画面（ユーザー・社員・デバイス管理）
 - 打刻履歴・修正機能
+- CSV出力（月次）
 - 本番運用時の ScanLog クリーンアップ方針
 
 ---

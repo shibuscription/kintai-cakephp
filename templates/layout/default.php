@@ -1,4 +1,5 @@
 <?php
+
 /**
  * CakePHP(tm) : Rapid Development Framework (https://cakephp.org)
  * Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
@@ -18,6 +19,7 @@ $cakeDescription = 'CakePHP: the rapid development php framework';
 ?>
 <!DOCTYPE html>
 <html>
+
 <head>
     <?= $this->Html->charset() ?>
     <title><?= $this->fetch('title') ?> | 勤怠システム</title>
@@ -27,6 +29,7 @@ $cakeDescription = 'CakePHP: the rapid development php framework';
     <?= $this->fetch('css') ?>
     <?= $this->fetch('script') ?>
 </head>
+
 <body>
     <header>
         <button id="menuToggle">☰</button>
@@ -42,6 +45,19 @@ $cakeDescription = 'CakePHP: the rapid development php framework';
             <li><?= $this->Html->link('ユーザー一覧', ['controller' => 'Users', 'action' => 'index']) ?></li>
             <li><?= $this->Html->link('スキャンログ', ['controller' => 'ScanLogs', 'action' => 'index']) ?></li>
             <li><?= $this->Html->link('勤怠記録', ['controller' => 'AttendanceRecords', 'action' => 'index']) ?></li>
+
+            <li class="menu-divider"></li>
+
+            <li>
+                <?= $this->Form->create(null, [
+                    'url' => ['controller' => 'Users', 'action' => 'logout'],
+                    'style' => 'margin:0;',
+                ]) ?>
+                <button type="submit" class="menu-logout">
+                    ログアウト
+                </button>
+                <?= $this->Form->end() ?>
+            </li>
         </ul>
     </nav>
 
@@ -57,4 +73,5 @@ $cakeDescription = 'CakePHP: the rapid development php framework';
         });
     </script>
 </body>
+
 </html>
