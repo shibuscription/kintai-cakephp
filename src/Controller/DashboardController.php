@@ -14,6 +14,16 @@ class DashboardController extends AppController
 
     public function index()
     {
-        // 表示だけ。JSでポーリングする
+        $deviceId = $this->request->getSession()->read('Kiosk.device_id');
+
+        // 端末がまだセットアップされてない場合
+        // → 画面上に案内を出す（JS pollingは止める）
+        $this->set(compact('deviceId'));
+    }
+
+    public function beforeFilter(\Cake\Event\EventInterface $event)
+    {
+        parent::beforeFilter($event);
+        $this->Authentication->allowUnauthenticated(['index']);
     }
 }

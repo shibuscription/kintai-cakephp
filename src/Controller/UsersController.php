@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Controller;
@@ -108,5 +109,66 @@ class UsersController extends AppController
         }
 
         return $this->redirect(['action' => 'index']);
+    }
+
+    public function beforeFilter($event)
+    {
+        parent::beforeFilter($event);
+
+        // ログイン画面は未認証でOK
+        $this->Authentication->allowUnauthenticated(['login']);
+    }
+    public function login()
+    {
+        // すでにログイン済みで /login に来た場合も role に飛ばす
+        $result = $this->Authentication->getResult();
+        if ($result && $result->isValid()) {
+            return $this->redirect($this->redirectByRole());
+        }
+
+        if ($this->request->is('post')) {
+            $result = $this->Authentication->getResult();
+
+            \Cake\Log\Log::debug('auth valid? ' . ($result && $result->isValid() ? 'yes' : 'no'));
+            if ($result) {
+                $errors = $result->getErrors();
+                if (!empty($errors)) {
+                    \Cake\Log\Log::debug('auth errors: ' . json_encode($errors, JSON_UNESCAPED_UNICODE));
+                }
+            } else {
+                \Cake\Log\Log::debug('auth result is null (authenticator may not run)');
+            }
+
+            if ($result && $result->isValid()) {
+                return $this->redirect($this->redirectByRole());
+            }
+
+            $this->Flash->error('ログインに失敗しました。');
+        }
+    }
+
+
+
+    public function logout()
+    {
+        $this->request->allowMethod(['get', 'post']);
+
+        $this->Authentication->logout();
+        $this->Flash->success('ログアウトしました。');
+
+        return $this->redirect(['action' => 'login']);
+    }
+
+    private function redirectByRole()
+    {
+        $identity = $this->request->getAttribute('identity');
+        $role = $identity ? $identity->get('role') : null;
+
+        return match ($role) {
+            'super_admin'   => ['controller' => 'Companies', 'action' => 'index'], // 例：会社一覧
+            'company_admin' => ['controller' => 'Kiosk', 'action' => 'setup'],  // 例：端末選択
+            'employee'      => ['controller' => 'Timecards', 'action' => 'index'], // 例：タイムカード
+            default         => '/',
+        };
     }
 }

@@ -106,4 +106,13 @@ return function (RouteBuilder $routes): void {
 
     $routes->connect('/scan-logs/next', ['controller' => 'ScanLogs', 'action' => 'next']);
     $routes->connect('/scan-logs/dev-create', ['controller' => 'ScanLogs', 'action' => 'devCreate']);
+
+    $routes->connect('/login', ['controller' => 'Users', 'action' => 'login']);
+    $routes->connect('/logout', ['controller' => 'Users', 'action' => 'logout']);
+
+    $routes->connect('/kiosk/setup', ['controller' => 'Kiosk', 'action' => 'setup']);
+    $routes->connect('/kiosk/clear', ['controller' => 'Kiosk', 'action' => 'clear']);
+
+    $routes->connect('/timecards', ['controller' => 'Timecards', 'action' => 'index']);
+
 };

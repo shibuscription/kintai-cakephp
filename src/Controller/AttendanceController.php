@@ -14,6 +14,13 @@ class AttendanceController extends AppController
         $this->viewBuilder()->setLayout('kiosk');
     }
 
+    public function beforeFilter(\Cake\Event\EventInterface $event)
+    {
+        parent::beforeFilter($event);
+        $this->Authentication->allowUnauthenticated(['decide', 'commit']);
+    }
+
+
     private function resolveEmployeeIdByIdmOrNull(string $idm): ?int
     {
         $employeeIdm = $this->fetchTable('EmployeeIdm');

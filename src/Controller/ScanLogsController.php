@@ -35,6 +35,13 @@ class ScanLogsController extends AppController
         $this->set(compact('scanLogs'));
     }
 
+    public function beforeFilter(\Cake\Event\EventInterface $event)
+    {
+        parent::beforeFilter($event);
+        $this->Authentication->allowUnauthenticated(['next', 'devCreate']);
+    }
+
+
     /**
      * View method
      *
@@ -121,7 +128,14 @@ class ScanLogsController extends AppController
     {
         $this->request->allowMethod(['get']);
 
+        // まずクエリ
         $deviceId = (string)$this->request->getQuery('device_id', '');
+
+        // クエリが無ければセッション（Kiosk）から補う
+        if ($deviceId === '') {
+            $deviceId = (string)$this->request->getSession()->read('Kiosk.device_id');
+        }
+
         $this->viewBuilder()->setClassName('Json');
 
         if ($deviceId === '') {
