@@ -154,6 +154,36 @@ $deviceIdJs = $deviceId ? json_encode($deviceId, JSON_UNESCAPED_UNICODE) : 'null
         letter-spacing: .3px;
         white-space: nowrap;
     }
+
+    .kiosk-login {
+        position: fixed;
+        top: 10px;
+        right: 12px;
+        z-index: 999;
+        opacity: .55;
+        transition: opacity .15s ease;
+    }
+
+    .kiosk-login:hover {
+        opacity: .95;
+    }
+
+    .kiosk-login a {
+        display: inline-block;
+        text-decoration: none;
+        border: 1px solid var(--border);
+        background: rgba(0, 0, 0, .18);
+        color: var(--muted);
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 12px;
+        line-height: 1;
+    }
+
+    .kiosk-login a:hover {
+        color: var(--text);
+        border-color: rgba(255, 255, 255, .22);
+    }
 </style>
 
 <div class="wrap">
@@ -166,6 +196,13 @@ $deviceIdJs = $deviceId ? json_encode($deviceId, JSON_UNESCAPED_UNICODE) : 'null
         <p id="status" class="dots">カードの読み取りを待っています</p>
     </div>
 </div>
+
+<?php if (empty($deviceId)): ?>
+    <div class="kiosk-login" title="管理者ログイン">
+        <?= $this->Html->link('🔑 ログイン', ['controller' => 'Users', 'action' => 'login']) ?>
+    </div>
+<?php endif; ?>
+
 
 <?php if (!empty($deviceId)): ?>
     <div class="kiosk-tools" title="端末設定">

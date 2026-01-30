@@ -38,7 +38,7 @@ class ScanLogsController extends AppController
     public function beforeFilter(\Cake\Event\EventInterface $event)
     {
         parent::beforeFilter($event);
-        $this->Authentication->allowUnauthenticated(['next', 'devCreate']);
+        $this->Authentication->allowUnauthenticated(['next', 'devCreate', 'devPanel']);
     }
 
 

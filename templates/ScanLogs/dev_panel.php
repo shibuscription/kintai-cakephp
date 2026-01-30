@@ -19,8 +19,8 @@
     TEST_IDM_002 / DEV_LOCAL
   </button>
 
-  <button type="button" onclick="location.href='/scan-logs/dev-create?idm=TEST_IDM_001&device_id=DEV_KIOSK_01'">
-    TEST_IDM_001 / DEV_KIOSK_01
+  <button type="button" onclick="location.href='/scan-logs/dev-create?idm=TEST_IDM_003&device_id=DEV_LOCAL'">
+    TEST_IDM_003 / DEV_LOCAL
   </button>
 </div>
 
