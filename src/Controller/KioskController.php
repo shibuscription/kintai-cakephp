@@ -5,6 +5,14 @@ namespace App\Controller;
 
 class KioskController extends AppController
 {
+    public function beforeFilter($event)
+    {
+        parent::beforeFilter($event);
+
+        // 端末解除は未認証でも実行可能
+        $this->Authentication->allowUnauthenticated(['clear']);
+    }
+
     public function setup()
     {
         // company_admin 以外は弾く（最低限）

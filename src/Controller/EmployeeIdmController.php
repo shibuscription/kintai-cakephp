@@ -29,6 +29,14 @@ class EmployeeIdmController extends AppController
         $this->set(compact('employeeIdm'));
     }
 
+    public function beforeFilter($event)
+    {
+        parent::beforeFilter($event);
+
+        // Kiosk からの未認証導線を許可（仕様に合わせて公開）
+        $this->Authentication->allowUnauthenticated(['register']);
+    }
+
     /**
      * View method
      *

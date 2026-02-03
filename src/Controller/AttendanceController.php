@@ -17,7 +17,7 @@ class AttendanceController extends AppController
     public function beforeFilter(\Cake\Event\EventInterface $event)
     {
         parent::beforeFilter($event);
-        $this->Authentication->allowUnauthenticated(['decide', 'commit']);
+        $this->Authentication->allowUnauthenticated(['decide', 'commit', 'complete']);
     }
 
 

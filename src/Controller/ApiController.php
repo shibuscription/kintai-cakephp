@@ -19,6 +19,14 @@ class ApiController extends AppController
         $this->RequestHandler->renderAs($this, 'json');
     }
 
+    public function beforeFilter($event)
+    {
+        parent::beforeFilter($event);
+
+        // 端末/外部送信用の API は未認証で許可
+        $this->Authentication->allowUnauthenticated(['idm']);
+    }
+
     public function idm()
     {
         $this->request->allowMethod(['post']);
