@@ -126,17 +126,39 @@ class EmployeeIdmController extends AppController
         $this->viewBuilder()->setLayout('kiosk');
 
         if (!Configure::read('debug')) {
-            // 本番でどうするかは後で。今は安全寄りで塞ぐ
-            throw new \Cake\Http\Exception\NotFoundException();
+            // allow in production
         }
 
         $scanLogId = (int)$this->request->getQuery('scan_log_id');
 
         $scanLogs = $this->fetchTable('ScanLogs');
+        $devices = $this->fetchTable('Devices');
         $employees = $this->fetchTable('Employees');
         $employeeIdm = $this->fetchTable('EmployeeIdm');
 
+        $deviceId = (string)$this->request->getSession()->read('Kiosk.device_id');
+        if ($deviceId === '') {
+            $this->Flash->error('Device is not set. Please setup kiosk device.');
+            return $this->redirect(['controller' => 'Dashboard', 'action' => 'index']);
+        }
+
+        $device = $devices->find()
+            ->select(['company_id', 'device_id', 'active_flag'])
+            ->where(['device_id' => $deviceId, 'active_flag' => 1])
+            ->first();
+
+        if (!$device) {
+            $this->Flash->error('Invalid device. Please setup kiosk device.');
+            return $this->redirect(['controller' => 'Dashboard', 'action' => 'index']);
+        }
+
+        $companyId = (int)$device->company_id;
+
         $scanLog = $scanLogs->get($scanLogId);
+        if ((string)$scanLog->device_id !== $deviceId) {
+            $this->Flash->error('Device mismatch for scan log.');
+            return $this->redirect(['controller' => 'Dashboard', 'action' => 'index']);
+        }
         $idm = (string)$scanLog->idm;
 
         // もし既に登録済みなら戻す（多重登録回避）
@@ -145,13 +167,22 @@ class EmployeeIdmController extends AppController
             ->first();
 
         if ($exists) {
-            return $this->redirect(['controller' => 'Attendance', 'action' => 'decide', '?' => ['scan_log_id' => $scanLogId]]);
+            $employee = $employees->find()
+                ->select(['id', 'company_id'])
+                ->where(['id' => $exists->employee_id])
+                ->first();
+
+            if ($employee && (int)$employee->company_id === $companyId) {
+                return $this->redirect(['controller' => 'Attendance', 'action' => 'decide', '?' => ['scan_log_id' => $scanLogId]]);
+            }
+
+            $this->Flash->error('IDM is already assigned to a different company.');
+            return $this->redirect(['controller' => 'Dashboard', 'action' => 'index']);
         }
 
-        // 全社員（いったん会社絞り込み無し）
         $employeeList = $employees->find()
             ->select(['id', 'employee_name'])
-            ->where(['active_flag' => 1])
+            ->where(['active_flag' => 1, 'company_id' => $companyId])
             ->orderAsc('employee_name')
             ->all()
             ->combine('id', 'employee_name')
@@ -159,6 +190,20 @@ class EmployeeIdmController extends AppController
 
         if ($this->request->is('post')) {
             $employeeId = (int)$this->request->getData('employee_id');
+
+            $employee = $employees->find()
+                ->select(['id'])
+                ->where([
+                    'id' => $employeeId,
+                    'company_id' => $companyId,
+                    'active_flag' => 1,
+                ])
+                ->first();
+
+            if (!$employee) {
+                $this->Flash->error('Invalid employee selection.');
+                return;
+            }
 
             if (!isset($employeeList[$employeeId])) {
                 $this->Flash->error('社員を選択してください。');

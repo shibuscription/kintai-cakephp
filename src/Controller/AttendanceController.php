@@ -41,7 +41,21 @@ class AttendanceController extends AppController
         $records   = $this->fetchTable('AttendanceRecords');
         $employees = $this->fetchTable('Employees');
 
+        $deviceId = (string)$this->request->getSession()->read('Kiosk.device_id');
+        if ($deviceId === '') {
+            $this->Flash->error('Device is not set. Please setup kiosk device.');
+            return $this->redirect(['controller' => 'Dashboard', 'action' => 'index']);
+        }
+
         $scanLog = $scanLogs->get($scanLogId);
+        if ((string)$scanLog->device_id !== $deviceId) {
+            $this->Flash->error('Device mismatch for scan log.');
+            return $this->redirect(['controller' => 'Dashboard', 'action' => 'index']);
+        }
+        if ((string)$scanLog->device_id !== $deviceId) {
+            $this->Flash->error('Device mismatch for scan log.');
+            return $this->redirect(['controller' => 'Dashboard', 'action' => 'index']);
+        }
 
         $idm = (string)$scanLog->idm;
         $employeeId = $this->resolveEmployeeIdByIdmOrNull($idm);
@@ -97,8 +111,24 @@ class AttendanceController extends AppController
         $scanLogs = $this->fetchTable('ScanLogs');
         $records  = $this->fetchTable('AttendanceRecords');
 
+        $deviceId = (string)$this->request->getSession()->read('Kiosk.device_id');
+        if ($deviceId === '') {
+            $this->Flash->error('Device is not set. Please setup kiosk device.');
+            return $this->redirect(['controller' => 'Dashboard', 'action' => 'index']);
+        }
+
+        $deviceId = (string)$this->request->getSession()->read('Kiosk.device_id');
+        if ($deviceId === '') {
+            $this->Flash->error('Device is not set. Please setup kiosk device.');
+            return $this->redirect(['controller' => 'Dashboard', 'action' => 'index']);
+        }
+
         // ★シンプル運用：processed 条件は付けない（next が 1 にしててもOK）
         $scanLog = $scanLogs->get($scanLogId);
+        if ((string)$scanLog->device_id !== $deviceId) {
+            $this->Flash->error('Device mismatch for scan log.');
+            return $this->redirect(['controller' => 'Dashboard', 'action' => 'index']);
+        }
 
         $employeeId = $this->resolveEmployeeIdByIdmOrNull((string)$scanLog->idm);
 

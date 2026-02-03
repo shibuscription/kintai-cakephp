@@ -131,6 +131,17 @@ class ScanLogsController extends AppController
         // まずクエリ
         $deviceId = (string)$this->request->getQuery('device_id', '');
 
+        $sessionDeviceId = (string)$this->request->getSession()->read('Kiosk.device_id');
+        if ($sessionDeviceId !== '') {
+            if ($deviceId !== '' && $deviceId !== $sessionDeviceId) {
+                $this->viewBuilder()->setClassName('Json');
+                $this->set(['found' => false, 'error' => 'device_id mismatch']);
+                $this->set('_serialize', ['found', 'error']);
+                return;
+            }
+            $deviceId = $sessionDeviceId;
+        }
+
         // クエリが無ければセッション（Kiosk）から補う
         if ($deviceId === '') {
             $deviceId = (string)$this->request->getSession()->read('Kiosk.device_id');
